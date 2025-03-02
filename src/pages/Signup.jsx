@@ -7,7 +7,7 @@ import { AuthContext } from "../context/AuthContext.jsx";
 import { useContext } from "react";
 
 const Signup = () => {
-  const{setUser} = useContext(AuthContext)
+  const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const { register, handleSubmit, errors } = useAuthForm();
   const [loading, setLoading] = useState(false);
@@ -25,26 +25,27 @@ const Signup = () => {
       password: formData.password,
     });
 
-    const {data, error} = response;
+    const { data, error } = response;
 
-    const user = data?.user
+    const user = data?.user;
 
-    if(user){
-      const {data:userData, error: profileError} = await supabase.from('profiles').upsert({
-        user_id: user?.id,
-        fullName: formData.fullName,
-        username: formData.username
-      }).select()
+    if (user) {
+      const { data: userData, error: profileError } = await supabase
+        .from("profiles")
+        .upsert({
+          user_id: user?.id,
+          fullName: formData.fullName,
+          username: formData.username,
+        })
+        .select();
 
-      if(profileError){
-        console.log("profileError: ", profileError)
-      }else{
-        console.log("profile data: ", userData)
-        setUser(userData)
+      if (profileError) {
+        console.log("profileError: ", profileError);
+      } else {
+        console.log("profile data: ", userData);
+        setUser(userData);
       }
     }
-    
-
 
     if (error) {
       setErrorMessage(error.message);
@@ -55,6 +56,24 @@ const Signup = () => {
       navigate("/signin");
     }
 
+    setLoading(false);
+  };
+  const signinWithGithub = async () => {
+    setLoading(true);
+    const response = await supabase.auth.signInWithOAuth({
+      provider: "github",
+      options: {
+        redirectTo: "http://localhost:3000/auth-callback",
+      },
+    });
+
+    const { data, error } = response;
+
+    if (error) {
+      console.log("Error: ", error);
+    } else {
+      console.log(data);
+    }
     setLoading(false);
   };
   return (
@@ -120,6 +139,18 @@ const Signup = () => {
               {loading ? "Signing up...." : "Sign up"}
             </button>
           </form>
+
+          <div className="mt-4">
+            <p className="text-md">Or sign up with</p>
+
+            <button
+              className="border shadow-2xl p-2 hover:cursor-pointer w-80 "
+              type="submit"
+              onClick={signinWithGithub}
+            >
+              {loading ? "Signing up...." : "Github"}
+            </button>
+          </div>
           <p className="text-md my-4 ">
             Already have an account?{" "}
             <Link className="text-blue-700" to="/signin">
