@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
+import { useCallback } from "react";
 
 const AuthContext = createContext(null);
 
@@ -8,6 +9,48 @@ const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const handleUserSignIn = useCallback(
+    async (authUser) => {
+      if (!authUser) return;
+
+      //check if user exists in profile table
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", authUser.id)
+        .single();
+
+      if (existingProfile) {
+        setUser(existingProfile);
+      } else {
+        //create user profile
+        const { data: newProfile, error } = await supabase
+          .from("profiles")
+          .upsert({
+            user_id: authUser.id,
+            fullName:
+              authUser.user_metadata?.full_name ||
+              authUser.user_metadata?.name ||
+              "",
+            username:
+              authUser.user_metadata?.username || authUser.email.split("@")[0],
+            email: authUser.email,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.log("error creating profile", error);
+        } else {
+          setUser(newProfile);
+        }
+      }
+
+      navigate("/dashboard");
+    },
+    [navigate]
+  );
 
   useEffect(() => {
     //check for user session
@@ -45,46 +88,7 @@ const AuthProvider = ({ children }) => {
     return () => {
       subscription?.unsubscribe();
     };
-  }, [navigate]);
-
-  const handleUserSignIn = async (authUser) => {
-    if (!authUser) return;
-
-    //check if user exists in profile table
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", authUser.id)
-      .single();
-
-    if (existingProfile) {
-      setUser(existingProfile);
-    } else {
-      //create user profile
-      const { data: newProfile, error } = await supabase
-        .from("profiles")
-        .upsert({
-          user_id: authUser.id,
-          fullName:
-            authUser.user_metadata?.full_name ||
-            authUser.user_metadata?.name ||
-            "",
-          username:
-            authUser.user_metadata?.username || authUser.email.split("@")[0],
-          email: authUser.email,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.log("error creating profile", error);
-      } else {
-        setUser(newProfile);
-      }
-    }
-
-    navigate("/dashboard");
-  };
+  }, [handleUserSignIn]);
 
   const signup = async (email, password, userData) => {
     setLoading(true);
