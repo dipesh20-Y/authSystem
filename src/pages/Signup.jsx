@@ -1,80 +1,44 @@
 import useAuthForm from "../hooks/AuthForm";
 import { FormInput } from "../components/FormInput";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient.js";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext.jsx";
-import { useContext } from "react";
 
 const Signup = () => {
-  const { setUser } = useContext(AuthContext);
+  const { signup, signinWithGithub, loading } = useContext(AuthContext);
   const navigate = useNavigate();
   const { register, handleSubmit, errors } = useAuthForm();
-  const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
   const onSubmit = async (formData) => {
-    console.log(formData);
-    setLoading(true);
-    setErrorMessage("");
-    setSuccessMessage("");
+    try {
+      setErrorMessage("");
+      setSuccessMessage("");
+  
+      await signup(formData.email, formData.password, {
+        fullName: formData.fullName,
+        username: formData.username,
+      });
 
-    const response = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-    });
+      setSuccessMessage("Account created successfully")
 
-    const { data, error } = response;
-
-    const user = data?.user;
-
-    if (user) {
-      const { data: userData, error: profileError } = await supabase
-        .from("profiles")
-        .upsert({
-          user_id: user?.id,
-          fullName: formData.fullName,
-          username: formData.username,
-        })
-        .select();
-
-      if (profileError) {
-        console.log("profileError: ", profileError);
-      } else {
-        console.log("profile data: ", userData);
-        setUser(userData);
-      }
+      setTimeout(()=>{
+        navigate('/signin')
+      }, 1500)
+    } catch (error) {
+      setErrorMessage(error.message)
+      
     }
-
-    if (error) {
-      setErrorMessage(error.message);
-    } else {
-      setSuccessMessage(
-        "Account created successfully. Please login to go to dashboard"
-      );
-      navigate("/signin");
-    }
-
-    setLoading(false);
   };
-  const signinWithGithub = async () => {
-    setLoading(true);
-    const response = await supabase.auth.signInWithOAuth({
-      provider: "github",
-      options: {
-        redirectTo: "http://localhost:3000/auth-callback",
-      },
-    });
-
-    const { data, error } = response;
-
-    if (error) {
-      console.log("Error: ", error);
-    } else {
-      console.log(data);
+  const githubSignIn = async () => {
+    try {
+      setErrorMessage("")
+      signinWithGithub()
+    } catch (error) {
+      setErrorMessage(error.message)
+      
     }
-    setLoading(false);
   };
   return (
     <div className="h-auto w-5xl mx-auto mt-24 border p-4 shadow-2xl">
@@ -88,6 +52,7 @@ const Signup = () => {
               label="Full Name"
               placeholder="Full Name"
               register={register}
+              s
               name="fullName"
               validation={{ required: true }}
               error={errors.fullName}
@@ -146,7 +111,7 @@ const Signup = () => {
             <button
               className="border shadow-2xl p-2 hover:cursor-pointer w-80 "
               type="submit"
-              onClick={signinWithGithub}
+              onClick={githubSignIn}
             >
               {loading ? "Signing up...." : "Github"}
             </button>
